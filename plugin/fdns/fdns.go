@@ -68,6 +68,14 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 		switch state.QType() {
 		case dns.TypeA:
 			rr = &dns.A{Hdr: hdr, A: net.ParseIP(row[0].(string))}
+		case dns.TypeAAAA:
+			rr = &dns.AAAA{Hdr: hdr, AAAA: net.ParseIP(row[0].(string))}
+		case dns.TypeCNAME:
+			rr = &dns.CNAME{Hdr: hdr, Target: row[0].(string)}
+		case dns.TypeNS:
+			rr = &dns.NS{Hdr: hdr, Ns: row[0].(string)}
+		case dns.TypeTXT:
+			rr = &dns.TXT{Hdr: hdr, Txt: strings.Split(row[0].(string), " ")}
 		case dns.TypeSOA:
 			rr = &dns.SOA{Hdr: hdr}
 			if !parseSOA(rr.(*dns.SOA), row[0].(string)) {
