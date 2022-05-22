@@ -42,6 +42,7 @@ var Directives = []string{
 	"minimal",
 	"template",
 	"transfer",
+	"fdns",
 	"hosts",
 	"route53",
 	"azure",
