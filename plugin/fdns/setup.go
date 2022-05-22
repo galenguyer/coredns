@@ -8,6 +8,7 @@ import (
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/joeguo/tldextract"
 )
 
 func init() {
@@ -32,6 +33,9 @@ func setup(c *caddy.Controller) error {
 		return err
 	}
 	backend.Pool = dbPool
+
+	extract, _ := tldextract.New("/tmp/tld.cache", false)
+	backend.TldExtract = extract
 
 	for c.NextBlock() {
 		x := c.Val()
