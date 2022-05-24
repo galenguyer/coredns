@@ -32,7 +32,7 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 	state := request.Request{W: w, Req: r}
 
 	// Extract the zone and ensure we're authoritative for it
-	extracted := b.TldExtract.Extract(strings.TrimRight(state.QName(), "."))
+	extracted := b.TldExtract.Extract(strings.ToLower(strings.TrimRight(state.QName(), ".")))
 	zone := extracted.Root + "." + extracted.Tld + "."
 	var count int
 	b.Pool.QueryRow(context.Background(), GET_ZONE_SQL, zone).Scan(&count)
@@ -51,7 +51,7 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 		qName += "."
 	}
 
-	rows, err := b.Pool.Query(context.Background(), GET_RECORDS_SQL, qName, dns.TypeToString[state.QType()])
+	rows, err := b.Pool.Query(context.Background(), GET_RECORDS_SQL, strings.ToLower(qName), dns.TypeToString[state.QType()])
 	if err != nil {
 		log.Print("[fdns]", err)
 		return dns.RcodeServerFailure, err
