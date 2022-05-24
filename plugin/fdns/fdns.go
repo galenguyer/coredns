@@ -45,7 +45,12 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 	a.Compress = true
 	a.Authoritative = true
 
-	rows, err := b.Pool.Query(context.Background(), GET_RECORDS_SQL, state.QName(), dns.TypeToString[state.QType()])
+	qName := state.QName()
+	if !strings.HasSuffix(qName, ".") {
+		qName += "."
+	}
+
+	rows, err := b.Pool.Query(context.Background(), GET_RECORDS_SQL, qName, dns.TypeToString[state.QType()])
 	if err != nil {
 		log.Print("[fdns]", err)
 		return dns.RcodeServerFailure, err
@@ -59,11 +64,9 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 			continue
 		}
 
-		hdr := dns.RR_Header{Name: state.QName(), Rrtype: state.QType(), Class: state.QClass(), Ttl: uint32(row[1].(int32))}
-		if !strings.HasSuffix(hdr.Name, ".") {
-			hdr.Name += "."
-		}
+		hdr := dns.RR_Header{Name: qName, Rrtype: state.QType(), Class: state.QClass(), Ttl: uint32(row[1].(int32))}
 
+		log.Println("[fdns]", hdr.Name, dns.TypeToString[state.QType()], row[0].(string))
 		var rr dns.RR
 		switch state.QType() {
 		case dns.TypeA:
@@ -108,10 +111,7 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 					return dns.RcodeServerFailure, err
 				}
 
-				hdr := dns.RR_Header{Name: state.QName(), Rrtype: state.QType(), Class: state.QClass(), Ttl: uint32(row[1].(int32))}
-				if !strings.HasSuffix(hdr.Name, ".") {
-					hdr.Name += "."
-				}
+				hdr := dns.RR_Header{Name: qName, Rrtype: dns.TypeSOA, Class: state.QClass(), Ttl: uint32(row[1].(int32))}
 
 				var rr dns.RR
 				rr = &dns.SOA{Hdr: hdr}
@@ -120,7 +120,7 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 				}
 
 				if rr != nil {
-					a.Extra = append(a.Extra, rr)
+					a.Ns = append(a.Ns, rr)
 				} else {
 					log.Print("[fdns]", "failed to parse SOA")
 					return dns.RcodeServerFailure, nil
