@@ -15,7 +15,8 @@ import (
 )
 
 const Name = "fdns"
-const GET_RECORDS_SQL = "SELECT content,ttl FROM records WHERE name = $1 AND type = $2"
+const GET_RECORDS_SQL = "SELECT content,type,ttl FROM records WHERE name = $1 AND (type = $2 OR type = 'CNAME')"
+const GET_SOA_SQL = "SELECT content,type,ttl FROM records WHERE name = $1 AND type = 'SOA'"
 const GET_ZONE_SQL = "SELECT count(id) FROM zones WHERE id = $1"
 
 type FDNSBackend struct {
@@ -63,12 +64,13 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 			log.Print("[fdns]", err)
 			continue
 		}
+		aType := dns.StringToType[row[1].(string)]
 
-		hdr := dns.RR_Header{Name: qName, Rrtype: state.QType(), Class: state.QClass(), Ttl: uint32(row[1].(int32))}
+		hdr := dns.RR_Header{Name: qName, Rrtype: aType, Class: state.QClass(), Ttl: uint32(row[2].(int32))}
 
-		log.Println("[fdns]", hdr.Name, dns.TypeToString[state.QType()], row[0].(string))
+		log.Println("[fdns]", hdr.Name, dns.TypeToString[aType], row[0].(string))
 		var rr dns.RR
-		switch state.QType() {
+		switch aType {
 		case dns.TypeA:
 			rr = &dns.A{Hdr: hdr, A: net.ParseIP(row[0].(string))}
 		case dns.TypeAAAA:
@@ -98,7 +100,7 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 	if len(a.Answer) == 0 {
 		code, err := plugin.NextOrFailure(b.Name(), b.Next, ctx, w, r)
 		if err != nil && err.Error() == "plugin/fdns: no next plugin found" {
-			rows, err = b.Pool.Query(context.Background(), GET_RECORDS_SQL, zone, "SOA")
+			rows, err = b.Pool.Query(context.Background(), GET_SOA_SQL, zone)
 			if err != nil {
 				log.Print("[fdns]", err)
 				return dns.RcodeServerFailure, err
@@ -111,7 +113,7 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 					return dns.RcodeServerFailure, err
 				}
 
-				hdr := dns.RR_Header{Name: qName, Rrtype: dns.TypeSOA, Class: state.QClass(), Ttl: uint32(row[1].(int32))}
+				hdr := dns.RR_Header{Name: qName, Rrtype: dns.TypeSOA, Class: state.QClass(), Ttl: uint32(row[2].(int32))}
 
 				var rr dns.RR
 				rr = &dns.SOA{Hdr: hdr}
