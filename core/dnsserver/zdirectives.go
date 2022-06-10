@@ -26,6 +26,7 @@ var Directives = []string{
 	"pprof",
 	"prometheus",
 	"errors",
+	"mqtt",
 	"log",
 	"dnstap",
 	"local",

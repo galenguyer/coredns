@@ -67,7 +67,7 @@ type Rule struct {
 
 const (
 	// CommonLogFormat is the common log format.
-	CommonLogFormat = `{remote}:{port} ` + replacer.EmptyValue + ` {>id} "{type} {class} {name} {proto} {size} {>do} {>bufsize}" {rcode} {>rflags} {rsize} {duration}`
+	CommonLogFormat = `{remote}:{port} ` + replacer.EmptyValue + ` {>id} "{type} {class} {name} {proto} {size} {>do} {>bufsize}" !{rcode} {>rflags} {rsize} {duration}`
 	// CombinedLogFormat is the combined log format.
 	CombinedLogFormat = CommonLogFormat + ` "{>opcode}"`
 	// DefaultLogFormat is the default log format.

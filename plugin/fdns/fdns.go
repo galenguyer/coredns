@@ -30,6 +30,10 @@ func (b FDNSBackend) Name() string { return Name }
 
 func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	state := request.Request{W: w, Req: r}
+	a := new(dns.Msg)
+	a.SetReply(r)
+	a.Compress = true
+	a.Authoritative = true
 
 	// Extract the zone and ensure we're authoritative for it
 	extracted := b.TldExtract.Extract(strings.ToLower(strings.TrimRight(state.QName(), ".")))
@@ -38,13 +42,9 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 	b.Pool.QueryRow(context.Background(), GET_ZONE_SQL, zone).Scan(&count)
 	if count == 0 {
 		log.Println("[fdns] not authoritative for", zone)
-		return dns.RcodeRefused, nil
+		a.Rcode = dns.RcodeRefused
+		return dns.RcodeRefused, w.WriteMsg(a)
 	}
-
-	a := new(dns.Msg)
-	a.SetReply(r)
-	a.Compress = true
-	a.Authoritative = true
 
 	qName := state.QName()
 	if !strings.HasSuffix(qName, ".") {
@@ -54,7 +54,8 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 	rows, err := b.Pool.Query(context.Background(), GET_RECORDS_SQL, strings.ToLower(qName), dns.TypeToString[state.QType()])
 	if err != nil {
 		log.Print("[fdns]", err)
-		return dns.RcodeServerFailure, err
+		a.Rcode = dns.RcodeServerFailure
+		return dns.RcodeServerFailure, w.WriteMsg(a)
 	}
 	defer rows.Close()
 
@@ -94,7 +95,8 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 	}
 	if rows.Err() != nil {
 		log.Print("[fdns]", rows.Err())
-		return dns.RcodeServerFailure, rows.Err()
+		a.Rcode = dns.RcodeServerFailure
+		return dns.RcodeServerFailure, w.WriteMsg(a)
 	}
 
 	if len(a.Answer) == 0 {
