@@ -37,24 +37,6 @@ func setup(c *caddy.Controller) error {
 	extract, _ := tldextract.New("/tmp/tld.cache", false)
 	backend.TldExtract = extract
 
-	for c.NextBlock() {
-		x := c.Val()
-		switch x {
-		case "debug":
-			args := c.RemainingArgs()
-			for _, v := range args {
-				switch v {
-				case "db":
-					// backend.DB = backend.DB.Debug()
-				}
-			}
-			backend.Debug = true
-			log.Println(Name, "enable log", args)
-		default:
-			return plugin.Error("fdns", c.Errf("unexpected '%v' command", x))
-		}
-	}
-
 	if c.NextArg() {
 		return plugin.Error("fdns", c.ArgErr())
 	}
