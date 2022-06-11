@@ -16,6 +16,7 @@ import (
 
 const Name = "fdns"
 const GET_RECORDS_SQL = "SELECT content,type,ttl FROM records WHERE name = $1 AND (type = $2 OR type = 'CNAME')"
+const GET_ANYTYPE_SQL = "SELECT count(*) FROM records WHERE name = $1"
 const GET_SOA_SQL = "SELECT content,type,ttl FROM records WHERE name = $1 AND type = 'SOA'"
 const GET_ZONE_SQL = "SELECT count(id) FROM zones WHERE id = $1"
 
@@ -100,6 +101,12 @@ func (b FDNSBackend) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.
 	}
 
 	if len(a.Answer) == 0 {
+		var count int
+		b.Pool.QueryRow(context.Background(), GET_ANYTYPE_SQL, state.QName()).Scan(&count)
+		if count == 0 {
+			a.Rcode = dns.RcodeNameError
+		}
+
 		code, err := plugin.NextOrFailure(b.Name(), b.Next, ctx, w, r)
 		if err != nil && err.Error() == "plugin/fdns: no next plugin found" {
 			rows, err = b.Pool.Query(context.Background(), GET_SOA_SQL, zone)
