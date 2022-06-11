@@ -29,6 +29,7 @@ func roundRobin(in []dns.RR) []dns.RR {
 	cname := []dns.RR{}
 	address := []dns.RR{}
 	mx := []dns.RR{}
+	ns := []dns.RR{}
 	rest := []dns.RR{}
 	for _, r := range in {
 		switch r.Header().Rrtype {
@@ -38,6 +39,8 @@ func roundRobin(in []dns.RR) []dns.RR {
 			address = append(address, r)
 		case dns.TypeMX:
 			mx = append(mx, r)
+		case dns.TypeNS:
+			ns = append(ns, r)
 		default:
 			rest = append(rest, r)
 		}
@@ -45,8 +48,10 @@ func roundRobin(in []dns.RR) []dns.RR {
 
 	roundRobinShuffle(address)
 	roundRobinShuffle(mx)
+	roundRobinShuffle(ns)
 
 	out := append(cname, rest...)
+	out = append(out, ns...)
 	out = append(out, address...)
 	out = append(out, mx...)
 	return out
